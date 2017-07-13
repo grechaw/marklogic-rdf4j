@@ -20,6 +20,10 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.List;
 
+import static org.hamcrest.MatcherAssert.*;
+import static org.hamcrest.Matchers.equalToIgnoringWhiteSpace;
+import static org.hamcrest.Matchers.is;
+
 import com.marklogic.semantics.rdf4j.MarkLogicRepositoryConnection;
 import org.eclipse.rdf4j.common.iteration.ConvertingIteration;
 import org.eclipse.rdf4j.common.iteration.ExceptionConvertingIteration;
@@ -480,7 +484,8 @@ public class MarkLogicTupleQueryTest extends Rdf4jTestBase {
         TupleQuery tupleQuery = conn.prepareTupleQuery(QueryLanguage.SPARQL, queryString);
 
         tupleQuery.evaluate(sparqlWriter);
-        Assert.assertEquals(expected, out.toString());
+
+        assertThat(expected,  is( equalToIgnoringWhiteSpace(out.toString())));
 
     }
 
