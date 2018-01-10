@@ -1,13 +1,21 @@
+% Performance improvements in marklogic-rdf4j ingestion
+% Charles Greer <mailto:cgreer@marklogic.com>
+% 1/10/2018
+
+(c) 2018 MarkLogic Confidential Material
 
 
-$ Status
+# Status of this Document
 
 Draft Proposal
 
 
 # Purpose
 
-This document describes a change to the marklogic-rdf4j (and by extrapolation to marklogic-jena) to improve the performance of RDF triple ingestion.  Current methods for ingesting triples vary in performance, but the stated overall goal of our customer is that we should
+This document describes a change to the marklogic-rdf4j (and by extrapolation
+to marklogic-jena) to improve the performance of RDF triple ingestion.  Current
+methods for ingesting triples vary in performance, but the stated overall goal
+of our customer is that we should
 
 * be able to ingest 600,000 triples, in a single transaction, in 120 seconds.
 
@@ -21,8 +29,9 @@ library to to improve performance of RDF ingestion.
 
 To prepare for this work, we've measured the rough performance of several
 methods of RDF ingestion.  In each case, the same 600,000 triples are loaded
-into MarkLogic from a Java application.   In all cases the Java application and MarkLogic
-are on separate machines.  So time includes all time for network and ingestion.
+into MarkLogic from a Java application.   In all cases the Java application and
+MarkLogic are on separate machines.  So time includes all time for network and
+ingestion.
 
 
 Source format | Ingestion Method | Thread Count  | REST Endpoint | cwg time | jj time |
@@ -46,6 +55,7 @@ Notes:
 * We speculate that the better improvement for jj's reflects better perf of a cluster
 * DMSDK batch size of 200 seems to perform optimally -- big enough payloads, but keeps server load more constanct.
 * size of payload makes big difference in turtle vs. ntriples over the wire.
+* Note how adding more threads ceases to improve performance at some point.
 
 Generally speaking, we want to accomplish two things with this effort:
 
@@ -144,16 +154,39 @@ The newly implemented method does not deduplicate triples on ingest.
 # Implementation
 
 
-The above invocations of 
+We target all uses of `MarkLogicRepositoryConnection.add()`
+
+Each of the add() methods will adopt the same strategy for adding triples to MarkLogic.
+
+a.  create a thread in which to execute the adds and return a Future.   block when?
+b.  Implement a streaming triple parser using RDF4j that:
+   a. starts a document at the beginning with <sem:triples> element.
+   b. start counting triples.
+   c. If we've processed 100 triples, end the document  with </sem:triples> and add it to a DMSDK batcher, start a new doc
+   d.  Serialize each triple as a <sem:triple/> element.
+c.  For quad parsing, refine the above process with a map.
+   a. Each quad that arrives, create a key/value pair where the key is the graph name and the value is a stream of triples.
+   b. As more quads arrive, add them
+   c.  --- risk of hihh memory usage if lots of graphs.... TBD
+IN PROGRESS quads refinement
+   DEAL WITH GRAPH DOCUMENTS.
+d. in the Future, which must be handled at some point.. the transaction is rolled back or committed.
 
 
-# Open Issues
+# Open Issues/Risks
 
 * graph documents. 
 
-* permissions on graphs
+* permissions on graphs.  Probably not in play in this refactoring, as graph permissions are only accessible via an interface to MarkLogic specific things -- need to verify.
 
 * marklogic-jena can benefit from the same approach but is not covered explicitly in this specification.
+
+* Best impl will involve a change to the Java Client API (DMSDK) to include
+transaction support in the write batcher.  This support probably should not be
+generally used -- just by these clients -- because it's probably not a good
+idea in most ingestion cases.  Alternately, multithreading and batching can be
+done in each client library...
+
 
 
 # Decisions
@@ -166,8 +199,8 @@ provided corresponding good ingestion methods in the other client language
 libraries (node.js)
 
 
-
 # Document History
 
 2018-01-09 Created Document.
+2018-01-10 Submitted to John James and Stephen Buxton for initial reaction.
 
