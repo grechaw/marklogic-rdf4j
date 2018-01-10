@@ -159,20 +159,23 @@ We target all uses of `MarkLogicRepositoryConnection.add()`
 
 Each of the add() methods will adopt the same strategy for adding triples to MarkLogic.
 
+```
 1.  create a thread in which to execute the adds and return a Future.   block when?
-1.  Implement a streaming triple parser using RDF4j that:
-   1. starts a document at the beginning with <sem:triples> element.
-   1. start counting triples.
-   1. If we've processed 100 triples, end the document  with </sem:triples> and add it to a DMSDK batcher, start a new doc
-   1.  Serialize each triple as a <sem:triple/> element.
-1.  For quad parsing, refine the above process with a map.
-   1. Each quad that arrives, create a key/value pair where the key is the graph name and the value is a stream of triples.
-   1. As more quads arrive, add them
-   1.  --- risk of hihh memory usage if lots of graphs.... TBD IN PROGRESS quads refinement DEAL WITH GRAPH DOCUMENTS.
-1. in the Future, which must be handled at some point.. the transaction is rolled back or committed.
+2.  Implement a streaming triple parser using RDF4j that:
+   a. starts a document at the beginning with <sem:triples> element.
+   b. start counting triples.
+   c. If we've processed 100 triples, end the document  with </sem:triples> and add it to a DMSDK batcher, start a new doc
+   d.  Serialize each triple as a <sem:triple/> element.
+3.  For quad parsing, refine the above process with a map.
+   a. Each quad that arrives, create a key/value pair where the key is the graph name and the value is a stream of triples.
+   b. As more quads arrive, add them
+   c.  --- risk of hihh memory usage if lots of graphs.... TBD IN PROGRESS quads refinement DEAL WITH GRAPH DOCUMENTS.
+4. in the body of the Future, which blocks after a unit of ingestion has been queued, the transaction is rolled back or committed.
+```
 
 
-Note: The DMSDK batcher must be modified to support transaction.
+Note: The DMSDK batcher must be modified to support transaction.  It can be
+configured to have a default thread pool and batch size.
 
 # Open Issues/Risks
 
